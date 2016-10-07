@@ -1,0 +1,95 @@
+---
+title: "SQL_intermediate"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# SQL Intermediate Answers
+note: ctrl-D for quit
+
+.schema to get column names of table
+
+
+
+SELECT Name FROM records
+WHERE Supervisor like "Oliver Warbucks";
+
+...> Ben Bitdiddle
+DeWitt Aull
+Eben Scrooge
+Oliver Warbucks
+
+SELECT Name FROM records
+WHERE Supervisor == Name;
+
+Oliver Warbucks
+
+SELECT Name FROM records
+WHERE Salary > 50000
+ORDER BY Name ASC;
+
+Ben Bitdiddle
+Eben Scrooge
+Oliver Warbucks
+
+SELECT Name, Salary, Supervisor, SuperSalary FROM
+Records LEFT JOIN (
+SELECT Name AS SuperName, Salary AS SuperSalary From Records
+WHERE SuperName IN (SELECT Supervisor FROM Records)) ss 
+ON Records.Supervisor = ss.SuperName
+WHERE SuperSalary > 2*Salary;
+
+Ben Bitdiddle|60000|Oliver Warbucks|150000
+DeWitt Aull|25000|Oliver Warbucks|150000
+Lem E Tweakit|25000|Ben Bitdiddle|60000
+Robert Cratchet|18000|Eben Scrooge|75000
+
+SELECT Name FROM
+Records LEFT JOIN (
+SELECT Name AS SuperName, Division AS SuperDivision From Records
+WHERE SuperName IN (SELECT Supervisor FROM Records)) ss
+ON Records.Supervisor = ss.SuperName
+WHERE Division != SuperDivision;
+
+Ben Bitdiddle
+Eben Scrooge
+
+SELECT Name, Day, Time FROM
+meetings INNER JOIN records ON meetings.Division = records.Division
+WHERE Supervisor LIKE "Oliver Warbucks";
+
+Ben Bitdiddle|Wednesday|4pm
+DeWitt Aull|Monday|11am
+DeWitt Aull|Thursday|1pm
+Eben Scrooge|Monday|9am
+Oliver Warbucks|Monday|11am
+Oliver Warbucks|Thursday|1pm
+
+Middle Managers
+
+(Join so you fill Underling table with Nulls?)
+
+Name, Supervisor, SuperSupervisor
+
+CREATE TEMP TABLE supers AS SELECT Name AS SuperName, Division AS SuperDivision, Supervisor AS Supersupervisor 
+FROM records WHERE SuperName IN (SELECT Supervisor FROM Records);
+
+SELECT DISTINCT SuperName FROM
+records INNER JOIN supers ON records.Supervisor == supers.SuperName
+WHERE Name != SuperName AND SuperName != Supersupervisor;
+
+Alyssa P Hacker
+Ben Bitdiddle
+Eben Scrooge
+
+
+SELECT Name FROM
+records LEFT JOIN supers ON records.Supervisor == supers.SuperName
+JOIN (SELECT )
+WHERE division == SuperDivision;
+
+
+

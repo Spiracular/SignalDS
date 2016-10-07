@@ -111,7 +111,7 @@ smiris = sample(iris, 10)
 sindex = sample(1:nrow(iris), 10)
 smiris = iris[sindex,]
 
-model.matrix( ~ Species - 1, data=smiris)
+dummyiris = model.matrix( ~ Species - 1, data=smiris)
 #Checked this solution, it generalizes!
 
 sapply(smiris, class)

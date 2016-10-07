@@ -1,0 +1,61 @@
+---
+title: "FactorAnalysisResults"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("psych")
+library("corrplot")
+```
+
+## Factor Analysis vs. PCA
+
+```{r more setup, include=FALSE, echo=FALSE}
+set.seed(1)
+Xs = rnorm(100)
+Ys = rnorm(100)
+Zs = rnorm(100)
+factors = cbind(Xs, Ys, Zs)
+dfactors = data.frame(factors)
+
+noisyProxies = function(feature, k, correlation){
+  flength = length(feature)
+  nprox = matrix(nrow=flength, ncol=k)
+  for (i in 1:k){
+    error = rnorm(flength)
+    nprox[,i] = feature*correlation + error 
+  }
+  nprox
+}
+
+noises = cbind(noisyProxies(dfactors$Xs, 4, 0.9), noisyProxies(dfactors$Ys, 3, 0.9))
+noises = as.data.frame(noises)
+#Quick note: V1:V4 are X-based, V5:V7 are Y-based.
+```
+
+```{r PCA and FA, include=TRUE}
+PCA_XYZ = prcomp(noises)
+FA_XYZ = fa(noises, nfactors=2, rotate = "varimax")
+```
+
+### Internal Correlation in Noises
+```{r Internal Correlation in Noises}
+corrplot(cor(noises))
+```
+
+### Correlation of PCA with Data
+```{r Correlation of PCA with Data}
+corrplot(cor(noises, PCA_XYZ$x))
+```
+
+### Correlation of PCA with Underlying Variables
+```{r Correlation of PCA with Underlying Variables}
+corrplot(cor(dfactors, PCA_XYZ$x))
+```
+
+### Factors vs. Underlying Variables
+```{r Factors vs Underlying Variables}
+corrplot(cor(dfactors, FA_XYZ$scores))
+```
+

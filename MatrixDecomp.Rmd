@@ -1,0 +1,85 @@
+---
+title: "Matrix_Decomposition"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Working up to Singular Value Decomposition
+
+**Complex Conjugate:** Expressed as $\overline{A}$. Normal coordinates: $ax+bi -> ax+(-b)i$. In polar coordinates: $\rho e^{i\phi} -> \rho e^{i\phi}$
+
+**[Transpose](https://en.wikipedia.org/wiki/Transpose):** Oft expressed as $A^T$  or $A^*$. Wiki also comes with succinct descriptions of Special Transpose Matrices.
+
+**Conjugate Transpose: **
+$\overline{A^T}$
+
+$$A^\dagger$$
+
+### **Unitary Matrix:**
+$U^\dagger U = U U^\dagger = I$
+
+### **Heritian Matrix:** 
+- Complex Square Matrix
+- Equals own Conjugate Transpose 
+
+$$A = A^\dagger$$
+$$a_{ij} = \overline{a_{ji}}$$
+
+## **Positive Semidefinite Hermitian Matrix:**
+for all $x \in C^n$ : $x^\dagger A x \geq 0$
+
+#### **[Matrix Decomposition](https://en.wikipedia.org/wiki/Matrix_decomposition):** Factorization of Matrices as a Product of Matrices 
+
+### Eigendecomposition (aka Spectral Decomposition)
+
+aka factorization into canonical form
+
+$A = VDV^{-1}$
+
+- $A$: square matrix
+- $V$: cols are eigenvectors
+- $D$: diagonal formed from eigenvectors
+
+#### Eigenvectors
+
+Eigenvector of some transformation $T(v)$ is a (non-zero) vector $v$ that does not change direction under that linear transformation.
+
+$$T(v) = \lambda v$$
+
+The **eigenvalue** is the scalar $lambda$.
+
+The linear transformation [in the case of matrices](https://en.wikipedia.org/wiki/Eigendecomposition_of_a_matrix), is...
+
+$$Av = \lambda v$$
+
+alternatively phrased as
+
+$$(A-\lambda I)v = 0$$
+
+**Kernel: ** (Linear Algebra) for linear mapping $L$ that maps between vectorspaces $V$ and $W$,  $L : V -> W$, the kernel (aka nullspace) is the set of all elements v in V for which $L(v) = 0$ where 0 is the zero-vecotr in W. In set-builder notation...
+
+$$ker(L) = \{ v \in V | L(v) = 0 \}$$
+
+
+## Matrix Polar Decomposition
+$A = UP$
+
+- $A$ is a square matrix
+- $U$ is a Unitary Matrix
+- $P$ is a Positive Semidefinite Hermitian Matrix
+
+# Singular Value Decomposition
+
+Uses Polar Decomposition to generalize Eigendecomposition to any $mxn$ matrix
+$$SVD( M) = UDV = U \Sigma V^*$$
+
+UDV is notation in R; the other is as written on Wikipedia
+
+- $U$: Unitary matrix (known as Left Singular Value)
+- $\Sigma$: Diagonal
+- $V^*$: Unitary matrix (known as Right Singular Value)
+- Both Singular Values: $\sqrt{eigenvalue \ \lambda}$ of $M^*M$ and $MM^*$
+

@@ -1,0 +1,54 @@
+---
+title: "PCA_Analysis_1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("corrplot")
+library("ggplot2")
+library("dplyr")
+library("psych")
+```
+
+```{r setting values, include = FALSE}
+df = msq
+df = select(df,Extraversion, Neuroticism, active:scornful)
+df = df[,colSums(is.na(df))<400]
+df =  df[(rowSums(is.na(df))==0),]
+
+
+features = select(df, -Extraversion, -Neuroticism)
+PCAdata = prcomp(features, scale=TRUE)
+
+top5 = PCAdata$rotation[,1:5]
+```
+
+### My read on the first 6 PCAs
+1. PC1: energetic happiness
+1. PC2: inverse unhappiness
+1. PC3: disquiet/unsettled (reversed serenity)
+1. PC4: I'm not tired
+1. PC5: "I'm not angry!" (while *cough* "frustrated")
+
+```{r Top 5 PCAs, echo=FALSE}
+corrplot(top5, is.corr=FALSE)
+```
+
+<center>Eigenvalues $\lambda$</center>
+$$
+Proportion \ variance \ explained \ by \ \lambda_1 = \dfrac{\lambda_1}{\sum(\lambda_n)}
+$$
+
+```{r Plot of eigenvalues, echo = TRUE}
+qplot(,PCAdata$sdev)
+#This is a plot of the eigenvalues by the PCA number
+```
+
+General pattern: Early PCAs are determined by a mix of weak influences from multiple associated variables.
+
+The first few could be captured by fairly distinct concepts.
+
+Middle PCAs are often 1 strong influence and many weak ones, harder to pinpoint to a phrase. Mudddled.
+
+Late PCAs are strongly determined (functionally defined as) 1 or 2 variables.
