@@ -1,0 +1,26 @@
+---
+title: "FinalProjectOutline"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+**Outline of Final Project**
+
+*Silent Code*
+- Clean, form, and format datasets
+- Create dummies
+- Separate into train & test OR run cv
+- Set-up and run linear regression, elastic regularization, decision tree, and random forest
+    - (keep expanding grid if it picks things to to the far end of grid)
+
+*Present*
+- Introduction to Dataset
+  - Cite source
+  - Mention restrictions on usage (ex: no death tolls <9 reported)
+- Data Communicated in overviews and graphs
+  - Metro-type colored histogram
+  - 

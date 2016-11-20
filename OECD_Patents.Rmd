@@ -1,0 +1,332 @@
+---
+title: "OECD_Patent_Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Predicting patent submission rates by country from other OECD data
+
+1. Fuse together csv s
+2. Separate test rows
+
+3. Linear regression
+  1. Clean up colinearity
+  2. Run Linear Regression
+  3. Interpret
+  4. Check accuracy against test rows
+4. Random Forest (normal and bagged)
+  1. Run random forests
+  2. Interpret
+  3. Check accuracy against test rows
+
+
+```{r import}
+library("rworldmap")
+library("psych")
+library("dplyr")
+library("ggplot2")
+library("glmnet")
+library("gbm")
+library("dplyr")
+library("ggplot2")
+library("caret")
+library("caretEnsemble")
+#library("DataCombine")
+#install.packages("DataCombine")# Warning: computer had to force-quit last time.
+```
+
+```{r cleaning_data}
+fac_char_float  = function(facvec){
+  outcome = as.character(facvec)
+  indices = grep("..", outcome)
+  outcome = replace(outcome, indices, NA)
+  finalvec = as.float(outcome)
+  finalvec
+}
+
+```
+### Some data cleaning notes
+
+#### OECD DATA
+OECD Internet Access Data
+-Initial column grab
+  IntAcc = select(InternetAccess, one_of(c("country","INDIC", "BRKD", "Time", "Unit.Code", "Value")))
+- Used dates 2005-2014 (2015 appeared to be incomplete)
+  IntAcc = filter(IntAcc, Time<2015)
+- Filtered for:
+  - Time==2010
+  - BRKD=="HH_TOTAL"
+- Then country and values saved as csv
+
+Patent Data
+- select(Patent1, one_of(c("Inventor.country", "SIZE", "DOM", "Year", "Unit", "Value")))
+- renamed Inventor.country to INVcountry, Value to Patents
+- Filtered for:
+  - DOM=="TOT" & Year==2010
+- Saved select(subPatent1, one_of(c("INVcountry", "SIZE", "Patents")))
+Same was applied to both Lone and Multi Patents
+
+Regional Innovation Database
+- Initial grab (2010): labor force totals, 2ary, and 3ary education, R&D personnel (number and expenditure), PCT patent applications per million
+- (Got both country and regional; initially working only with country data)
+- Split into 2: education, education percents, and R&D(w/patent)
+
+OECD FDI Regulatory Restrictiveness Index
+- Grabbed several that seemed like they might be relevant (total, primary, manufacture, Electricity distribution, Distribution, Retail, Media, Financial, Legal, accounting & audit)
+- 
+
+Basic Demographic count info (from OECD health data)
+- Grabbed size of population, size of employed workforce
+
+#### World Bank Data
+Urban population percentage, GDP, tax revenue (%GDP)... you know what, I'll just dump the output. 14 metrics.
+
+ [1] Urban population                                                                  Total tax rate (% of commercial profits)                                         
+ [3] Time required to start a business (days)                                          Taxes on income, profits and capital gains (% of revenue)                        
+ [5] Population in urban agglomerations of more than 1 million (% of total population) Income share held by highest 20%                                                 
+ [7] Government expenditure on education, total (% of GDP)                             Cost of business start-up procedures (% of GNI per capita)                       
+ [9] GDP at market prices (constant 2010 US$)                                          GDP per capita (constant 2010 US dollars)                                               
+[11] Urban population (% of total)                                                     Urban population growth (annual %)                                               
+[13] Tax revenue (% of GDP)    
+
+Note: I imputed in the mean for the missing values from this dataset.
+
+### CREATING NEW COMBINED METRICS:
+- Form total 
+
+brainstorm:
+-size of biggest city?
+-
+
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+```{r caret_prep}
+#Grabbed from NonLinear Regression (which generally has a lot of useful code to copy-paste)
+
+caret_reg = function(x, y, method, grid, ...) {
+  set.seed(1)
+  control = trainControl(method="repeatedcv", repeats=1,
+                         number=3, verboseIter=TRUE)
+  train(x=x, y=y, method=method, tuneGrid=grid,
+        trControl=control, metric="RMSE", #Note that you could change the accuracy metric here
+        preProcess=c("center", "scale"), ...)
+}
+#Note: this handles elastic net regularization according to parameters provided in grid
+
+```
+
+```{r load_csvs}
+
+FDI = read.csv(file="data/FDI.csv")
+RD = read.csv(file="data/RD2010.csv")
+Patent = read.csv(file="data/Patent2010.csv") #Note: Patents includes a LOT of countries. 
+IntAcc = read.csv(file="data/Net2010.csv")
+
+Pops = read.csv(file="data/population.csv")
+Emply = read.csv(file="data/employed.csv")
+
+Cities = read.csv("data/citydata.csv", na.strings = c("NA", "..")) #Yes, this is good!
+
+MoneyTrack = read.csv(file="data/GDP.csv", na.strings = c("NA", "..")) #Mexico has a blank for taxes; do fix
+
+many_GDP = read.csv("data/GDP_From_World_Development_Indicators/9a3f8901-0e58-4054-8ea5-bb6e65899feb_Data.csv", na.strings = c("NA", "..")) #Unprocessed GDP goodness from World Bank
+names(many_GDP)[[5]] = "GDP"
+
+many_Pop = read.csv("data/Population_From_World_Development_Indicators (2)/98305422-8f23-4109-9887-a103e08b4674_Data.csv", na.strings = c("NA", ".."))
+names(many_Pop)[[5]] = "Pop"
+
+head(FDI)#Country
+head(RD)#Region
+head(Patent)#INVcountry
+head(IntAcc)#country (please rename Value to Internet)
+head(Pops)
+head(Cities)#Country.Name
+
+sapply(FDI, class)
+sapply(RD, class)
+sapply(Patent, class)
+sapply(IntAcc, class)
+sapply(Pops, class)
+sapply(Cities, class)
+
+#Imputing in the mean for missing values in Cities
+colus = c("Edu_Spend", "Metro_pop", "Top_20", "UrbanPer")
+for (nm in colus){
+  Cities[[nm]][is.na(Cities[[nm]])] = mean(Cities[[nm]], na.rm=TRUE)
+}
+
+#Imputing tax percent for Mexico
+
+mean(MoneyTrack$Taxp, na.rm=TRUE) #18.8
+MoneyTrack$Taxp[is.na(MoneyTrack$Taxp)] = mean(MoneyTrack$Taxp, na.rm=TRUE)
+
+
+###I did not trace all my steps here, and it would be better to use current names in MixedDF when redoing, agreed? (or resave csvs with renamed values)
+
+#rename and fuse together on country
+
+PMixDF= base::merge(IntAcc, Patent, by.x="INVcountry", by.y="country", all=TRUE) #the argument "all" 's default handles restricting it to data in both!
+MixedDF = base::merge(MixedDF, Pops, by.x="country", by.y="Country")
+MixedDF = base::merge(MixedDF, Emply, by.x="country", by.y="Country")
+
+MixedDF = select(MixedDF, -Measure.x, -Measure.y, -SIZE)
+
+MixedDF$internet = MixedDF$internet * MixedDF$Population / 100
+
+
+###
+sd(IntAcc$internet)#15%
+cor(MixedDF$internet, MixedDF$Population) #0.961764 (wow, all this is pretty correlated...)
+cor(MixedDF$internet, MixedDF$Employed) #0.974
+cor(MixedDF$Population, MixedDF$Employed) #0.996 (EXTREMELY correlated!)
+###
+
+PercentDF = MixedDF
+PercentDF$internet = PercentDF$internet / PercentDF$Population
+PercentDF$Patents = PercentDF$Patents / PercentDF$Population
+PercentDF$Employed = PercentDF$Employed / PercentDF$Population
+
+cor(select(PercentDF, -country)) #As percentages, correlations are much weaker but internet & employed still get .65
+#I want percent urban in this analysis as well. (Also: fact that percents are less correlated? Great. I'll be using percents to do the analysis, then.)
+#It's using pearson by default... I think that keeps this valid, although I'd like to retest it with scaled population too just in case.
+
+levels(MixedDF$country)
+unique(RD$VAR)
+
+unique(filter(RD, VAR=="PCT_MILLION"))
+
+sapply(Cities, class) #Everything is a factor. THAT'S how it has .. standing in for NA.
+Cities$Metro_pop[12]
+?replace
+
+```
+
+```{r EDA}
+
+qplot(Pops$Population)#Unmistakably an exponential or power-law dist. Probs the later.
+#y~x^(-c) (I think?)
+qplot(Cities$Metro_pop) #Uniform distribution; spike is probably from impute (rethink it later)
+qplot(Cities$Edu_Spend)#Normal?
+qplot(Cities$UrbanPer)#Normal
+qplot(Cities$Top_20)#unidentifiable
+qplot(Patent$Patents, bins=100)#Exponential ###Check for correlation with Population
+qplot(MoneyTrack$Taxp) #Normal or lognormal
+qplot(MoneyTrack$GDP_tot, bins=80) #Most likely power law, but maybe exponential
+
+qplot(GDPat$GDP_tot, GDPat$Patents)
+
+qplot(log(many_GDP$GDP), bins = 100)#Log of GDP is really normal-distributed
+qplot(log(Patent$Patents), bins=100)#The log looks really power-law as well.
+
+qplot(many_Pop$Pop, bins=100)#Yep, exponential or power law.
+qplot(log(many_Pop$Pop), bins=100)#With log, it looks acceptably normal.
+
+
+cortest = merge(Pops, Patent, by.x="Country", by.y = "INVcountry")
+cor(cortest$Population, cortest$Patents) #Only 0.155, almost no correlation.
+
+
+GDPat = merge(MoneyTrack, Patent, by.x="Country.Name", by.y="INVcountry")
+cor(GDPat$GDP_tot, GDPat$Patents)#0.976 ; quite significant
+cor(GDPat$GDP_pC, GDPat$Patents) 
+
+extra_GDPat  =merge(many_GDP, Patent, by.x="Country.Name", by.y="INVcountry")
+extra_GDPat = merge(extra_GDPat, many_Pop, by = "Country.Name")
+extra_GDPat = na.omit(extra_GDPat)
+
+cor(extra_GDPat$GDP, extra_GDPat$Patents) #0.957
+
+extra_GDPat$GDPpC = extra_GDPat$GDP / extra_GDPat$Pop
+extra_GDPat$PatpC = extra_GDPat$Patents / extra_GDPat$Pop
+
+cor(extra_GDPat$GDPpC, extra_GDPat$PatpC) #0.8217
+#Interesting! Per-capita is less linearly correlated.
+qplot(extra_GDPat$GDPpC, extra_GDPat$PatpC)
+qplot(log(extra_GDPat$GDPpC), log(extra_GDPat$PatpC)) #With log it's linear-with-exceptins?
+#And this correlation is super-fuzzy, but basically linear?
+qplot(extra_GDPat$GDPpC, extra_GDPat$Patents)#Oh, huh! There's a fork.
+#One part of fork (high patents): Germany, Japan, US
+#Other part of fork (high GDPpC): Denmark, Liechtenstein, Luxembourg,
+#  Monaco, Norway, Qatar, Switzerland
+
+sapply(extra_GDPat, class)
+filter(extra_GDPat, Patents > 5e+04)
+filter(extra_GDPat, GDPpC > 53000)
+filter(extra_GDPat, Country.Name == "Austria")
+ 
+filter(extra_GDPat, log(PatpC)< -18)$Country.Name
+#Divergent-from-linear (PatpC not correlated with GDP) fellows: 
+#[1] Benin             Brunei Darussalam Dominica          Equatorial Guinea Fiji             
+#[6] Greenland         Kiribati          Lesotho           Liberia           Maldives         
+#[11] Mozambique        Palau             Papua New Guinea  Tonga             Turkmenistan     
+#[16] Vanuatu           Zambia 
+
+#I wonder how much their economies are reliant on raw resources?
+#Dominica is a small island nature area, ditto for Kiribati (probably just tiny)
+#Their common factor may just be small size?
+#Turkmenistan has natural gas and horrible dictatorship.
+
+qplot(extra_GDPat$GDP, extra_GDPat$Patents) #Sigmoid if you squint, still close to linear...
+#I should try GDP per capita against Patents per capita...
+
+
+
+prematurelm = lm(Patents~.-country, MixedDF)
+prematurelm$coefficients #I think Employed has colinearity with something. Internet does seem to have a semi-consistent positive relationship, depending on how lm is calculated.
+summary(prematurelm)
+
+p = prcomp(features, scale=TRUE)
+```
+# Weeding out overcorrelated variables
+
+
+
+
+
+
+```{r decorrelate}
+
+#find correlation coefficients
+
+```
+
+
+```{r Lin_Reg}
+# 1. Set grid and tune parameters
+gridname = expand.grid()
+#Run 0: run linear regression
+lin_reg = caret_reg(x=X, y=Y, grid=gridname, method="glmnet")
+
+lin_reg$bestTune
+
+
+#Run 1: MARS (aka EARTH)
+
+
+
+```
+
+```{r Forest}
+# 1. Set grid and tune parameters
+gridname = expand.grid(cp=10^seq(-3,0,length.out=7))
+#Run 2: rpart
+reg_tree = caret_reg(x=X, y=Y, grid=gridname, method="rpart")
+
+reg_tree$bestTune
+
+#Run 3: ranger
+gridname = expand.grid(mtry=1:10)
+
+rand_forest = caret_reg(x=X, y=Y, grid=gridname, method="ranger", importance="impurity")
+
+rand_forest$bestTune
+
+```
+
+

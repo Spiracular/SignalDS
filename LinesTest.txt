@@ -1,0 +1,4 @@
+This is a series of lines
+To make it easeier for me to
+Understand what enumerate does
+There.

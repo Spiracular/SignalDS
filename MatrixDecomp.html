@@ -121,7 +121,7 @@ $(document).ready(function () {
 
 <div id="working-up-to-singular-value-decomposition" class="section level1">
 <h1>Working up to Singular Value Decomposition</h1>
-<p><strong>Complex Conjugate:</strong> Expressed as <span class="math inline">\(\overline{A}\)</span>. Normal coordinates: <span class="math inline">\(ax+bi -&gt; ax+(-b)i\)</span>. In polar coordinates: <span class="math inline">\(\rho e^{i\phi} -&gt; \rho e^{i\phi}\)</span></p>
+<p><strong>Complex Conjugate:</strong> Expressed as <span class="math inline">\(\overline{A}\)</span>. Normal coordinates: <span class="math inline">\(ax+bi \rightarrow ax+(-b)i\)</span>. In polar coordinates: <span class="math inline">\(\rho e^{i\phi} \rightarrow \rho e^{-i\phi}\)</span></p>
 <p><strong><a href="https://en.wikipedia.org/wiki/Transpose">Transpose</a>:</strong> Oft expressed as <span class="math inline">\(A^T\)</span> or <span class="math inline">\(A^*\)</span>. Wiki also comes with succinct descriptions of Special Transpose Matrices.</p>
 <p><strong>Conjugate Transpose: </strong> <span class="math inline">\(\overline{A^T}\)</span></p>
 <p><span class="math display">\[A^\dagger\]</span></p>
@@ -156,10 +156,12 @@ $(document).ready(function () {
 <h4>Eigenvectors</h4>
 <p>Eigenvector of some transformation <span class="math inline">\(T(v)\)</span> is a (non-zero) vector <span class="math inline">\(v\)</span> that does not change direction under that linear transformation.</p>
 <p><span class="math display">\[T(v) = \lambda v\]</span></p>
-<p>Which <a href="https://en.wikipedia.org/wiki/Eigendecomposition_of_a_matrix">in the case of matrices</a>, is…</p>
-<p><span class="math display">\[Av = \lambda v\]</span></p>
 <p>The <strong>eigenvalue</strong> is the scalar <span class="math inline">\(lambda\)</span>.</p>
-<p><strong>Kernel: </strong> for linear mapping <span class="math inline">\(L\)</span> that maps between vectorspaces V and W <span class="math inline">\(L : V -&gt; W\)</span>, the kernel (aka nullspace) is the set of all elements v in V for which <span class="math inline">\(L(v) = 0\)</span> where 0 is the zero-vecotr in W. In set-builder notation…</p>
+<p>The linear transformation <a href="https://en.wikipedia.org/wiki/Eigendecomposition_of_a_matrix">in the case of matrices</a>, is…</p>
+<p><span class="math display">\[Av = \lambda v\]</span></p>
+<p>alternatively phrased as</p>
+<p><span class="math display">\[(A-\lambda I)v = 0\]</span></p>
+<p><strong>Kernel: </strong> (Linear Algebra) for linear mapping <span class="math inline">\(L\)</span> that maps between vectorspaces <span class="math inline">\(V\)</span> and <span class="math inline">\(W\)</span>, <span class="math inline">\(L : V -&gt; W\)</span>, the kernel (aka nullspace) is the set of all elements v in V for which <span class="math inline">\(L(v) = 0\)</span> where 0 is the zero-vecotr in W. In set-builder notation…</p>
 <p><span class="math display">\[ker(L) = \{ v \in V | L(v) = 0 \}\]</span></p>
 </div>
 </div>

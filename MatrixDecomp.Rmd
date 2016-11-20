@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Working up to Singular Value Decomposition
 
-**Complex Conjugate:** Expressed as $\overline{A}$. Normal coordinates: $ax+bi -> ax+(-b)i$. In polar coordinates: $\rho e^{i\phi} -> \rho e^{i\phi}$
+**Complex Conjugate:** Expressed as $\overline{A}$. Normal coordinates: $ax+bi \rightarrow ax+(-b)i$. In polar coordinates: $\rho e^{i\phi} \rightarrow \rho e^{-i\phi}$
 
 **[Transpose](https://en.wikipedia.org/wiki/Transpose):** Oft expressed as $A^T$  or $A^*$. Wiki also comes with succinct descriptions of Special Transpose Matrices.
 

@@ -1,0 +1,211 @@
+---
+title: "InfectionCharacter"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r library}
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("dummies")
+library("pROC")
+```
+
+```{r prep_Dataset}
+infectDeath = read.csv("data/HealthData/AgeInfections.txt", sep="\t")
+names(infectDeath)=c(lapply(names(infectDeath), function(x) gsub("[.]","_",x) ))
+names(infectDeath)
+infectDeath = infectDeath[1:1001,] #Rest is footnotes
+names(infectDeath)[8:11] = c("Age_Groups", "Age_Groups_Code", "Cause", "Cause_Code")
+#Reordering levels; their default misplaces 15-24.
+infectDeath$Age_Groups_Code = factor(infectDeath$Age_Groups_Code, c("", "1-4","5-14", "15-24", "25-34", "35-44", "45-54", "55-64", "65-74"))
+infectDeath$Rate = as.numeric(as.character(infectDeath$Crude_Rate))
+
+```
+
+```{r}
+##Influenza and pneumonia (J09-J18)    =    GR113-076
+flu = filter(infectDeath, Cause_Code=="GR113-076") #& Age_Groups_Code == "45-54")
+fluTable = dplyr::summarise(group_by(flu, X2013_Urbanization_Code), Frac=sum(Deaths)/sum(Population))
+#In the northeast, you are more likely to be in a hospital deep in a city if you're dying of the flu?
+#Seems like the most reasonable theory for a double in deathrate.
+#For all others, 
+fludf =data.frame(fluTable)
+qplot(x=fluTable$Frac)
+
+ggplot(fludf, aes(X2013_Urbanization_Code,Frac)) + geom_bar(stat="identity")
+
+ggplot(flu, aes(X2013_Urbanization_Code, Deaths, fill=Age_Groups_Code)) + geom_bar(stat="identity")
+#I'm guessing the doubling is becuase of male vs. female. Will check.
+flufem = filter(flu, Gender_Code == "F")
+ggplot(flufem, aes(X2013_Urbanization_Code, Deaths, fill=Age_Groups_Code)) + geom_bar(stat="identity")
+
+###Augh, I really need levels to reorder themselves so 5-14 fits in the correct slot.
+#Pretty high confidence on that, yes.
+
+#I'd like to try scaling down everything by the population size, now.
+
+cityGroup= group_by(flufem, X2013_Urbanization_Code, Age_Groups_Code)#Gender
+cityFrac= dplyr::summarise(cityGroup, Fraction= sum(Deaths)/sum(Population))
+femFrac = data.frame(cityFrac)
+
+ggplot(femFrac, aes(X2013_Urbanization_Code, Fraction, fill=Age_Groups_Code)) + geom_bar(stat="identity")
+
+#Okay, so ages 55-64 and 65-74 are responsible for the strange variance in urban_code = 1, altogether
+#it looks like the rest of the variance is irrelevant in size.
+
+#Double-check: is population the population of PEOPLE or DEATHS?
+
+```
+
+```{r top_death_sort}
+causeSorted = group_by(infectDeath, Cause)
+topTable= data.frame(dplyr::summarise(causeSorted, Deathcount=sum(Deaths)))
+topTable = topTable[order(topTable$Deathcount, decreasing = TRUE),]
+View(topTable)
+
+#There's an influenza/pneumonia hybrid.
+#I need to check how many different things contain the word "Influenza" in it.
+
+causes = unique(infectDeath$Cause)
+grep("[iI]nfluenza", causes)#1,10
+grep("[pP]neumonia", causes)#1,8
+
+InPne = filter(infectDeath, Cause=="#Influenza and pneumonia (J09-J18)")
+
+inP = dplyr::summarise(group_by(InPne, X2013_Urbanization_Code, Age_Groups_Code), Fraction=sum(Deaths)/sum(Population))
+inP = data.frame(inP)
+
+ggplot(inP, aes(X2013_Urbanization_Code, Fraction, fill=Age_Groups_Code)) + geom_bar(stat="identity")
+#Looks really similar to Influenza chart
+#I'll take a guess and do a quick check at the bottom that the influenza chart looks similar.
+
+#Lets apply the same process to HIV
+Urban_bar = function(df, caus, ages=""){
+  dfilter = filter(df, Cause == caus)
+  if (ages != ""){
+    dfilter = filter(dfilter, Age_Groups_Code == ages)
+  }
+  inP = dplyr::summarise(group_by(dfilter, X2013_Urbanization_Code, Age_Groups_Code), Fraction=sum(Deaths)/sum(Population))
+  inP = data.frame(inP)
+  return ( ggplot(inP, aes(X2013_Urbanization_Code, Fraction, fill=Age_Groups_Code)) + geom_bar(stat="identity") + ggtitle(caus) ) 
+}
+
+Urban_bar(infectDeath,"#Influenza and pneumonia (J09-J18)")
+
+Urban_bar(infectDeath, "#Human immunodeficiency virus (HIV) disease (B20-B24)", ages="")
+#Younger age groups (teens to 20s) ONLY seem to die of AIDS in cities? (Urban index 1,2,3)
+#But those age groups have low numbers to begin with.
+#Highest fraction dying of it are 35-54
+
+Urban_bar(infectDeath, "Pneumonia (J12-J18)") #Young people hardly ever get pneumonia?
+#Follows same pattern as Influenza, except for the absence of young people.
+
+
+#A Note: Influenza and Pneumonia are combined as a higher category,
+#And the access I'm using allows for a fineness of resolution that targets only that data.
+
+```
+
+```{r younger}
+flu = filter(infectDeath, Cause_Code=="GR113-076" & Age_Groups_Code == "25-34")
+fluTable = dplyr::summarise(group_by(flu, X2013_Urbanization_Code), Frac=sum(Deaths)/sum(Population))
+#In the northeast, you are more likely to be in a hospital deep in a city if you're dying of the flu?
+#Seems like the most reasonable theory for a double in deathrate.
+#For all others, 
+fludf =data.frame(fluTable)
+qplot(x=fluTable$Frac)
+
+ggplot(fludf, aes(X2013_Urbanization_Code,Frac)) + geom_bar(stat="identity")
+
+#Huh, the distribution is WAY different for the 25-34 year olds. Smaller overall fraction, though.
+```
+
+```{r additions}
+#Hypothesis-testing for plausible reasons why we have higher deadly influenza rates in level-1 cities
+
+#1. Are all long-lasting causes of death showing this pattern? (how do I even sort for this? OH! All combined causes of death, of course.)
+
+inP = dplyr::summarise(group_by(infectDeath, X2013_Urbanization_Code, Age_Groups_Code), Fraction=sum(Deaths)/sum(Population))
+  inP = data.frame(inP)
+ggplot(inP, aes(X2013_Urbanization_Code, Fraction, fill=Age_Groups_Code)) + geom_bar(stat="identity")
+
+#NOT AT ALL!
+#Check septicemia, COPS, and OTHER?
+
+Urban_bar(infectDeath, "#Chronic lower respiratory diseases (J40-J47)") #Linear ascent, high at 6
+Urban_bar(infectDeath, "#Septicemia (A40-A41)") #almost perfectly flat
+Urban_bar(infectDeath, "All other diseases (Residual)") #Hm... doesn't work?
+
+#Other causes of death #code: GR113-111
+newfilter = filter(infectDeath, Cause_Code == "GR113-111")
+ninP = dplyr::summarise(group_by(newfilter, X2013_Urbanization_Code, Age_Groups_Code), Fraction=sum(Deaths)/sum(Population))
+  ninP = data.frame(ninP)
+ggplot(ninP, aes(X2013_Urbanization_Code, Fraction, fill=Age_Groups_Code)) + geom_bar(stat="identity")
+#No easily discernable pattern, mostly flat.
+
+#2. Hospitals? Are these people all inpatients? #Getting more data is a nuissance, deal with later.
+#3. Public transport & crowding? (problem: disentanglement from urbanization / city density)
+##Minor evidence against the above: level 2 and 3 concentration show little difference.
+##Additional problem: This is people  *dying* of the flu, not just catching it.
+##(check against data on where people catch the flu? Google? No, I can't get regional, that's too bad... (there are also now a whole bunch of artcles on errors in the Google Flu algorithm))
+
+#
+
+```
+
+```{r dataset_prep}
+dummy()
+```
+
+
+```{r}
+####Set-up
+library("glmnet")
+library("gbm")
+library("dplyr")
+library("ggplot2")
+library("caret")
+library("caretEnsemble")
+
+caret_reg = function(x, y, method, grid, ...) {
+  set.seed(1)
+  control = trainControl(method="repeatedcv", repeats=1,
+                         number=3, verboseIter=TRUE)
+  train(x=x, y=y, method=method, tuneGrid=grid,
+        trControl=control, metric="RMSE",
+        preProcess=c("center", "scale"), ...)
+}
+####
+###Rest of this is copied from Nonlinear Regression; modify for current dataset.
+
+#Decision_Tree
+treegrid  = expand.grid(cp=10^seq(-3,0,length.out=10))
+
+regress_tree = caret_reg(x=trainwine, y=whitewine$quality, grid=treegrid, method="rpart")
+
+plot(regress_tree$finalModel) #Aw, there's a tree but no labels :(
+
+
+##Random_Forest
+mtrygrid = expand.grid(mtry=2:6)
+
+random_tree = caret_reg(x=trainwine, y=whitewine$quality, grid=mtrygrid, method="ranger", importance="impurity")
+#ranger is kinda just better than plain rf; faster and paralellized implementation.
+
+results[5,] = list("ranger rf",  min(random_tree$results$RMSE))
+
+###From SelfAssess3Megan
+alphalam = expand.grid(alpha= 1:10*0.1 , lambda = 10^seq(3, 0, length.out=7))
+#alphas: between 0 and 1 for intermediates between lasso and ridge regression
+#lambdas: supply decreasing values for glmnet. Penalty term. The total of lambda will be divied up according to the alpha parameter
+control = trainControl(method="repeatedcv", number=10, repeats=3, verboseIter=TRUE)
+caret_fit = train(x=TwinTrain, y=TwinCSV$NMSQT, method="glmnet", tuneGrid = alphalam, trControl=control, preProc = c("center", "scale"))
+#Do I need preProc = c("center", "scale") given 0,1 values? There may be a bias in one direction or another on some of the Qs... I'll leave it in.
+
+caret_fit$bestTune 
+
+```

@@ -1,0 +1,10 @@
+/*
+N-BODY SIMULATION
+
+Intent: simulate N objects and gravitation on a plane.
+
+$$F = G /dfrac{m_1 m_2}{r^2}$$
+
+
+
+*/

@@ -1,0 +1,112 @@
+---
+title: "CancerCompare"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r library}
+library("plyr")
+library("dplyr")
+library("ggplot2")
+library("dummies")
+```
+
+```{r prep_Dataset}
+cityDeath = read.csv("data/HealthData/CityMultiple Cause of Death, 1999-2014.txt", sep="\t")
+names(cityDeath)=c(lapply(names(cityDeath), function(x) gsub("[.]","_",x) ))
+names(cityDeath)[8:11] = c("Age_Groups", "Age_Groups_Code", "Cause", "Cause_Code")
+cityDeath$Age_Groups_Code = factor(cityDeath$Age_Groups_Code, levels = c("","1","1-4","5-14","15-24","25-34","35-44","45-54","55-64","65-74","75-84","85+") )
+cityDeath$Rate = as.numeric(as.character(cityDeath$Crude_Rate))
+cityDeath$AgeAvg = 
+#Note: Rate is out of 10k
+
+#Remove everything with Crude_Rate == "Unreliable"
+cityDeath = filter(cityDeath, Crude_Rate != "Unreliable")
+#dim(cityDeath) #16,225 vs. 15
+
+
+
+```
+
+```{r checkup}
+#First, vs. cancer #NOPE! Make this a standard-able apply.
+
+Overview = function(df, foc){
+  outs = vector(mode="list", length=2)
+  #subset = filter(df, Cause==caus)
+  outs[[1]] = base::summary(df[[foc]])
+  outs[[2]] = qplot(df[[foc]])
+  return(outs)
+}
+
+#"#Malignant neoplasms (C00-C97)"
+
+levels(cityDeath$Age_Groups_Code)#11 age categories. 5-14 was lodged in an obviously-wrong slot.
+
+
+subCancer = filter(cityDeath, Cause=="#Malignant neoplasms (C00-C97)")
+
+Overview(subCancer, "Rate")
+
+#Interesting! It sorts out into about 5 micro-dists; is it age-related?
+#Lets sort out where they come from!
+#Furthest rigth: 85+ cohort
+#Second furthest right: 75-84 cohort
+
+sapply(subCancer, class)
+
+maxUrban = filter(subCancer, X2013_Urbanization_Code == 1)
+midUrban = filter(subCancer, X2013_Urbanization_Code == 2)
+minUrban = filter(subCancer, X2013_Urbanization_Code == 6)
+unique(subCancer$X2013_Urbanization_Code)
+
+elderlyCancer = filter(subCancer, Age_Groups_Code == "85+")
+oldCancer = filter(subCancer, Age_Groups_Code == "75-84")
+retiredCancer = filter(subCancer, Age_Groups_Code == "65-74")
+
+Overview(retiredCancer, "Rate")
+#85+ avg: 1685
+#75-84 avg:1168
+#65-74 avg: 632
+
+qplot(x=retiredCancer$Rate, xlim=c(0, 2000), ylim = c(0,50))
+
+
+qplot(x=maxUrban$Rate, xlim=c(0, 2000), ylim = c(0,50))
+qplot(x=midUrban$Rate, xlim=c(0, 2000), ylim = c(0,50))
+qplot(x=minUrban$Rate, xlim=c(0, 2000), ylim = c(0,50))
+#only slight differences, I think.
+
+
+#Other thing I want to look at: "#Accidents (unintentional injuries) (V01-X59,Y85-Y86)"
+
+```
+
+```{r linear_reg}
+#Make dummies for Age_Groups_Code, region, and urbanization
+#select out unwanted rows
+
+#linear regression with normalization?
+
+#Elastic Regularization
+
+#CART?
+
+#Random Forest classification
+
+##Hm... The thing I want to do is assume normal distributions for each of age groups...
+##I also could stand to grab more data and just the cancer-related atttributes
+
+
+#Alternatively? Infection types vs. urbanization and economic attributes of areas.
+###Results: Influenza and Pneumonia seem higher in cities, but discredit this if it turns out that
+###population just means "number who died" and not "number in age cohort".
+###Confirmed: Population does indeed represent population.
+
+#I REALLY do want to find out which diseases are more prevalent in rural vs. urban areas...
+#also climate.
+
+
+```

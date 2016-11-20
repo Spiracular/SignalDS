@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # SQL Intermediate Answers
 note: ctrl-D for quit
 
+sqlite3 --init company.sql
+
 .schema to get column names of table
 
 
@@ -90,6 +92,165 @@ SELECT Name FROM
 records LEFT JOIN supers ON records.Supervisor == supers.SuperName
 JOIN (SELECT )
 WHERE division == SuperDivision;
+
+/* Output supervisor and sum of salaries of all employees  */
+
+# How to get a schema: .schema records (no ; , oddly)
+
+SuperName, Salary, Name
+
+SELECT SuperName, SUM(Salary) FROM
+records LEFT JOIN supers ON records.Supervisor == supers.SuperName;
+
+Alyssa P Hacker|30000
+Ben Bitdiddle|100000
+Eben Scrooge|18000
+Oliver Warbucks|310000
+
+#I'm not quite getting this right, and I'll get back to it. (Augh... )
+
+
+## Output all salaries that appear more than once in employe records
+
+SELECT Salary FROM records
+GROUP BY Salary
+HAVING COUNT(Salary) > 1;
+
+25000
+
+# Recursive WITH: use WITH to generate tables local to query and use them immediately
+
+Example code (yields numbers 0 to 5):
+
+WITH num(n) AS (
+  Select 0 UNION
+  SELECT n+1 FROM num WHERE n<5
+  )
+  SELECT * FROM num;
+
+# Factorials
+
+WITH num(n, f) AS (
+  Select 1 as n, 1 as f UNION
+  SELECT n+1 , (n+1)*f FROM num WHERE n<10
+  )
+  SELECT * FROM num;
+  
+1|1
+2|2
+3|6
+4|24
+5|120
+6|720
+7|5040
+8|40320
+9|362880
+10|3628800
+
+
+WITH num(p,s,t) AS(
+  SELECT 0 AS p, 1 AS s, 2 AS t UNION
+  SELECT p+3, p+4, p+5 FROM num WHERE p<10
+  )
+  SELECT  * FROM num;
+  
+0|1|2
+3|4|5
+6|7|8
+9|10|11
+12|13|14
+
+
+sqlite3 --init dogs.sql
+
+.read dogs.sql
+
+pragma table_info(dogs);
+
+# All dogs with a parent ordered by height of parent
+
+SELECT child FROM parents
+  LEFT JOIN dogs ON parent=name
+  ORDER BY height DESC;
+
+WITH sibs(a, b) AS
+  (SELECT x.child AS a, y.child AS b
+  FROM parents x JOIN parents y ON x.parent = y.parent
+  WHERE a < b
+  )
+SELECT a || ' and ' || b || ' are ' || sa.size || ' siblings.'
+  FROM sibs
+    JOIN dogs da ON a = da.name
+    JOIN dogs db ON b = db.name
+    JOIN sizes sa ON (da.height > sa.min) AND (da.height <= sa.max)
+    JOIN sizes sb ON (db.height > sb.min) AND (db.height <= sb.max)
+    WHERE sa.size = sb.size;
+    
+barack and clinton are standard siblings.
+abraham and grover are toy siblings.
+
+# All stacks (aka SUM(height)) of 4 dogs more than 170cm high. Order by height (ASC).
+# Comma-separated list of dogs in stack, total height. ()
+# There are 8 dogs
+
+
+#This leads to reordered name configurations. Solutions? (could I subset dogs after the point on which it was left?)
+
+SELECT x.name || ', ' || y.name || ', ' || z.name || ', ' || a.name AS dognames, 
+x.height + y.height + z.height + a.height AS stack_height
+FROM dogs x join dogs y on x.height<y.height
+join dogs z on y.height < z.height
+join dogs a on z.height < a.height
+WHERE stack_height > 170
+ORDER BY stack_height;
+
+abraham, delano, clinton, barack|171
+grover, delano, clinton, barack|173
+herbert, delano, clinton, barack|176
+fillmore, delano, clinton, barack|177
+eisenhower, delano, clinton, barack|180
+
+
+#Height and name of every dog that matches 10s digit with another dog and has the highest 1s digit
+
+SELECT name, substr(height, 1, 1) AS tens, substr(height,2, 1) AS ones FROM dogs
+GROUP BY tens
+HAVING COUNT(tens) > 1 AND ones = MAX(ones);
+
+grover|2|8
+eisenhower|3|5
+clinton|4|7
+
+#There is another function, ltrim, that allows explicit removal of a particular set of characters from the left side (ex: whitespace)
+
+
+#Grand and great grandparents
+#Order by difference in height, negatives for older-younger come first.
+
+WITH grands(grandparent, grandchild, gpheight, gcheight) AS
+(SELECT a.parent AS grandparent, b.child AS grandchild, gp.height AS gpheight, gc.height AS gcheight FROM 
+parents b LEFT JOIN parents a ON b.parent = a.child
+JOIN dogs gp ON a.parent =  gp.name
+JOIN dogs gc ON b.child = gc.name)
+SELECT grandparent, grandchild FROM grands
+ORDER BY (gpheight-gcheight);
+
+#Fuse together the gp and gc pairs with the ggp ggc pairs?
+#Duplicate the gp and use it to generate the ggc?
+
+##First 10 lines expected
+fillmore|barack
+eisenhower|barack
+fillmore|clinton
+eisenhower|clinton
+eisenhower|delano
+abraham|eisenhower
+grover|eisenhower
+herbert|eisenhower
+herbert|fillmore
+fillmore|herbert
+#
+
 
 
 

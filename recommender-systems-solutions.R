@@ -188,6 +188,7 @@ library(corrplot)
 corrplot(pca_c$rotation, is.corr=FALSE)
 
 # Estimating different careers' genre preferences
+#######################################################Here's where you need to learn to fix it#########
 genre_facs = list()
 for (genre in us) {
   set.seed(1)
